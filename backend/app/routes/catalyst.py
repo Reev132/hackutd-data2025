@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlalchemy.orm import Session
+from firebase_admin import firestore
 from typing import List, Optional
 
 from app.models.schemas import (
@@ -16,7 +16,7 @@ from app.models.schemas import (
     # User schemas
     UserCreate, UserUpdate, UserOut, UserListOut,
 )
-from app.services.db_service import get_db
+from app.services.firestore_client import get_db
 from app.services.project_service import project_service
 from app.services.label_service import label_service
 from app.services.cycle_service import cycle_service
@@ -37,7 +37,7 @@ project_router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
 @project_router.post("/", response_model=ProjectOut, status_code=201)
-def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
+def create_project(project: ProjectCreate, db: firestore.Client = Depends(get_db)):
     """Create a new project"""
     try:
         created_project = project_service.create_project(db, project)
@@ -47,7 +47,7 @@ def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
 
 
 @project_router.get("/", response_model=ProjectListOut)
-def list_projects(db: Session = Depends(get_db)):
+def list_projects(db: firestore.Client = Depends(get_db)):
     """Get all projects"""
     try:
         projects = project_service.get_all_projects(db)
@@ -57,7 +57,7 @@ def list_projects(db: Session = Depends(get_db)):
 
 
 @project_router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: int, db: Session = Depends(get_db)):
+def get_project(project_id: str, db: firestore.Client = Depends(get_db)):
     """Get a single project by ID"""
     project = project_service.get_project_by_id(db, project_id)
     if not project:
@@ -66,7 +66,7 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
 
 
 @project_router.put("/{project_id}", response_model=ProjectOut)
-def update_project(project_id: int, update_data: ProjectUpdate, db: Session = Depends(get_db)):
+def update_project(project_id: str, update_data: ProjectUpdate, db: firestore.Client = Depends(get_db)):
     """Update a project"""
     try:
         updated_project = project_service.update_project(db, project_id, update_data)
@@ -78,7 +78,7 @@ def update_project(project_id: int, update_data: ProjectUpdate, db: Session = De
 
 
 @project_router.delete("/{project_id}")
-def delete_project(project_id: int, db: Session = Depends(get_db)):
+def delete_project(project_id: str, db: firestore.Client = Depends(get_db)):
     """Delete a project"""
     try:
         deleted = project_service.delete_project(db, project_id)
@@ -97,7 +97,7 @@ label_router = APIRouter(prefix="/labels", tags=["Labels"])
 
 
 @label_router.post("/", response_model=LabelOut, status_code=201)
-def create_label(label: LabelCreate, db: Session = Depends(get_db)):
+def create_label(label: LabelCreate, db: firestore.Client = Depends(get_db)):
     """Create a new label"""
     try:
         created_label = label_service.create_label(db, label)
@@ -107,7 +107,7 @@ def create_label(label: LabelCreate, db: Session = Depends(get_db)):
 
 
 @label_router.get("/", response_model=LabelListOut)
-def list_labels(project_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+def list_labels(project_id: Optional[str] = Query(None), db: firestore.Client = Depends(get_db)):
     """Get all labels, optionally filtered by project"""
     try:
         labels = label_service.get_all_labels(db, project_id)
@@ -117,7 +117,7 @@ def list_labels(project_id: Optional[int] = Query(None), db: Session = Depends(g
 
 
 @label_router.get("/{label_id}", response_model=LabelOut)
-def get_label(label_id: int, db: Session = Depends(get_db)):
+def get_label(label_id: str, db: firestore.Client = Depends(get_db)):
     """Get a single label by ID"""
     label = label_service.get_label_by_id(db, label_id)
     if not label:
@@ -126,7 +126,7 @@ def get_label(label_id: int, db: Session = Depends(get_db)):
 
 
 @label_router.put("/{label_id}", response_model=LabelOut)
-def update_label(label_id: int, update_data: LabelUpdate, db: Session = Depends(get_db)):
+def update_label(label_id: str, update_data: LabelUpdate, db: firestore.Client = Depends(get_db)):
     """Update a label"""
     try:
         updated_label = label_service.update_label(db, label_id, update_data)
@@ -138,7 +138,7 @@ def update_label(label_id: int, update_data: LabelUpdate, db: Session = Depends(
 
 
 @label_router.delete("/{label_id}")
-def delete_label(label_id: int, db: Session = Depends(get_db)):
+def delete_label(label_id: str, db: firestore.Client = Depends(get_db)):
     """Delete a label"""
     try:
         deleted = label_service.delete_label(db, label_id)
@@ -157,7 +157,7 @@ cycle_router = APIRouter(prefix="/cycles", tags=["Cycles"])
 
 
 @cycle_router.post("/", response_model=CycleOut, status_code=201)
-def create_cycle(cycle: CycleCreate, db: Session = Depends(get_db)):
+def create_cycle(cycle: CycleCreate, db: firestore.Client = Depends(get_db)):
     """Create a new cycle"""
     try:
         created_cycle = cycle_service.create_cycle(db, cycle)
@@ -167,7 +167,7 @@ def create_cycle(cycle: CycleCreate, db: Session = Depends(get_db)):
 
 
 @cycle_router.get("/", response_model=CycleListOut)
-def list_cycles(project_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+def list_cycles(project_id: Optional[str] = Query(None), db: firestore.Client = Depends(get_db)):
     """Get all cycles, optionally filtered by project"""
     try:
         cycles = cycle_service.get_all_cycles(db, project_id)
@@ -177,7 +177,7 @@ def list_cycles(project_id: Optional[int] = Query(None), db: Session = Depends(g
 
 
 @cycle_router.get("/{cycle_id}", response_model=CycleOut)
-def get_cycle(cycle_id: int, db: Session = Depends(get_db)):
+def get_cycle(cycle_id: str, db: firestore.Client = Depends(get_db)):
     """Get a single cycle by ID"""
     cycle = cycle_service.get_cycle_by_id(db, cycle_id)
     if not cycle:
@@ -186,7 +186,7 @@ def get_cycle(cycle_id: int, db: Session = Depends(get_db)):
 
 
 @cycle_router.put("/{cycle_id}", response_model=CycleOut)
-def update_cycle(cycle_id: int, update_data: CycleUpdate, db: Session = Depends(get_db)):
+def update_cycle(cycle_id: str, update_data: CycleUpdate, db: firestore.Client = Depends(get_db)):
     """Update a cycle"""
     try:
         updated_cycle = cycle_service.update_cycle(db, cycle_id, update_data)
@@ -198,7 +198,7 @@ def update_cycle(cycle_id: int, update_data: CycleUpdate, db: Session = Depends(
 
 
 @cycle_router.delete("/{cycle_id}")
-def delete_cycle(cycle_id: int, db: Session = Depends(get_db)):
+def delete_cycle(cycle_id: str, db: firestore.Client = Depends(get_db)):
     """Delete a cycle"""
     try:
         deleted = cycle_service.delete_cycle(db, cycle_id)
@@ -217,7 +217,7 @@ module_router = APIRouter(prefix="/modules", tags=["Modules"])
 
 
 @module_router.post("/", response_model=ModuleOut, status_code=201)
-def create_module(module: ModuleCreate, db: Session = Depends(get_db)):
+def create_module(module: ModuleCreate, db: firestore.Client = Depends(get_db)):
     """Create a new module"""
     try:
         created_module = module_service.create_module(db, module)
@@ -227,7 +227,7 @@ def create_module(module: ModuleCreate, db: Session = Depends(get_db)):
 
 
 @module_router.get("/", response_model=ModuleListOut)
-def list_modules(project_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+def list_modules(project_id: Optional[str] = Query(None), db: firestore.Client = Depends(get_db)):
     """Get all modules, optionally filtered by project"""
     try:
         modules = module_service.get_all_modules(db, project_id)
@@ -237,7 +237,7 @@ def list_modules(project_id: Optional[int] = Query(None), db: Session = Depends(
 
 
 @module_router.get("/{module_id}", response_model=ModuleOut)
-def get_module(module_id: int, db: Session = Depends(get_db)):
+def get_module(module_id: str, db: firestore.Client = Depends(get_db)):
     """Get a single module by ID"""
     module = module_service.get_module_by_id(db, module_id)
     if not module:
@@ -246,7 +246,7 @@ def get_module(module_id: int, db: Session = Depends(get_db)):
 
 
 @module_router.put("/{module_id}", response_model=ModuleOut)
-def update_module(module_id: int, update_data: ModuleUpdate, db: Session = Depends(get_db)):
+def update_module(module_id: str, update_data: ModuleUpdate, db: firestore.Client = Depends(get_db)):
     """Update a module"""
     try:
         updated_module = module_service.update_module(db, module_id, update_data)
@@ -258,7 +258,7 @@ def update_module(module_id: int, update_data: ModuleUpdate, db: Session = Depen
 
 
 @module_router.delete("/{module_id}")
-def delete_module(module_id: int, db: Session = Depends(get_db)):
+def delete_module(module_id: str, db: firestore.Client = Depends(get_db)):
     """Delete a module"""
     try:
         deleted = module_service.delete_module(db, module_id)
@@ -277,7 +277,7 @@ ticket_router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
 
 @ticket_router.post("/", response_model=TicketOut, status_code=201)
-def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
+def create_ticket(ticket: TicketCreate, db: firestore.Client = Depends(get_db)):
     """Create a new ticket"""
     try:
         created_ticket = ticket_service.create_ticket(db, ticket)
@@ -287,7 +287,7 @@ def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
 
 
 @ticket_router.get("/")
-def list_tickets(project_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+def list_tickets(project_id: Optional[str] = Query(None), db: firestore.Client = Depends(get_db)):
     """Get all tickets, optionally filtered by project"""
     try:
         tickets = ticket_service.get_all_tickets(db, project_id)
@@ -350,7 +350,7 @@ def list_tickets(project_id: Optional[int] = Query(None), db: Session = Depends(
 
 
 @ticket_router.get("/{ticket_id}", response_model=TicketOut)
-def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
+def get_ticket(ticket_id: str, db: firestore.Client = Depends(get_db)):
     """Retrieve a single ticket by ID"""
     ticket = ticket_service.get_ticket_by_id(db, ticket_id)
     if not ticket:
@@ -359,7 +359,7 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 
 
 @ticket_router.put("/{ticket_id}", response_model=TicketOut)
-def update_ticket(ticket_id: int, update_data: TicketUpdate, db: Session = Depends(get_db)):
+def update_ticket(ticket_id: str, update_data: TicketUpdate, db: firestore.Client = Depends(get_db)):
     """Update an existing ticket"""
     try:
         updated_ticket = ticket_service.update_ticket(db, ticket_id, update_data)
@@ -371,7 +371,7 @@ def update_ticket(ticket_id: int, update_data: TicketUpdate, db: Session = Depen
 
 
 @ticket_router.delete("/{ticket_id}")
-def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
+def delete_ticket(ticket_id: str, db: firestore.Client = Depends(get_db)):
     """Delete a ticket by ID"""
     try:
         deleted = ticket_service.delete_ticket(db, ticket_id)
@@ -390,7 +390,7 @@ user_router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @user_router.post("/", response_model=UserOut, status_code=201)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserCreate, db: firestore.Client = Depends(get_db)):
     """Create a new user"""
     try:
         created_user = user_service.create_user(db, user)
@@ -400,7 +400,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @user_router.get("/", response_model=UserListOut)
-def list_users(db: Session = Depends(get_db)):
+def list_users(db: firestore.Client = Depends(get_db)):
     """Get all users"""
     try:
         users = user_service.get_all_users(db)
@@ -410,7 +410,7 @@ def list_users(db: Session = Depends(get_db)):
 
 
 @user_router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user_id: str, db: firestore.Client = Depends(get_db)):
     """Retrieve a single user by ID"""
     user = user_service.get_user_by_id(db, user_id)
     if not user:
@@ -419,7 +419,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @user_router.put("/{user_id}", response_model=UserOut)
-def update_user(user_id: int, update_data: UserUpdate, db: Session = Depends(get_db)):
+def update_user(user_id: str, update_data: UserUpdate, db: firestore.Client = Depends(get_db)):
     """Update an existing user"""
     try:
         updated_user = user_service.update_user(db, user_id, update_data)
@@ -431,7 +431,7 @@ def update_user(user_id: int, update_data: UserUpdate, db: Session = Depends(get
 
 
 @user_router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: str, db: firestore.Client = Depends(get_db)):
     """Delete a user by ID"""
     try:
         success = user_service.delete_user(db, user_id)

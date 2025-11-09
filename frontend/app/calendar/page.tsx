@@ -25,31 +25,31 @@ type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type Priority = "urgent" | "high" | "medium" | "low" | "none";
 
 interface Ticket {
-  id: number;
+  id: string; // Firestore uses string IDs
   title: string;
   summary: string | null;
   start_date: string | null;
   end_date: string | null;
   assignee: string | null; // Keep for backward compatibility
-  assignee_id?: number | null;
+  assignee_id?: string | null;
   status: TicketStatus;
   priority: Priority;
   estimated_hours?: number | null;
-  project_id?: number | null;
-  cycle_id?: number | null;
-  module_id?: number | null;
-  parent_ticket_id?: number | null;
+  project_id?: string | null;
+  cycle_id?: string | null;
+  module_id?: string | null;
+  parent_ticket_id?: string | null;
   created_at: string;
   updated_at: string;
-  project?: { id: number; name: string; identifier: string };
-  cycle?: { id: number; name: string; start_date: string; end_date: string };
-  module?: { id: number; name: string };
-  labels?: Array<{ id: number; name: string; color?: string }>;
+  project?: { id: string; name: string; identifier: string };
+  cycle?: { id: string; name: string; start_date: string; end_date: string };
+  module?: { id: string; name: string };
+  labels?: Array<{ id: string; name: string; color?: string }>;
   assignee_user?: User | null;
 }
 
 interface Project {
-  id: number;
+  id: string; // Firestore uses string IDs
   name: string;
   identifier: string;
   description?: string;
@@ -64,8 +64,8 @@ interface CalendarEvent {
   assignee?: string | null; // Keep for backward compatibility
   assignee_user?: User | null;
   status: TicketStatus;
-  ticketId: number;
-  project?: { id: number; name: string; identifier: string };
+  ticketId: string; // Firestore uses string IDs
+  project?: { id: string; name: string; identifier: string };
 }
 
 // Expanded color palette for more visual variety
@@ -140,7 +140,17 @@ const getEventColor = (ticket: Ticket): { className: string; style?: React.CSSPr
     default:
       // Use hash-based color assignment for consistent coloring per ticket
       // This ensures the same ticket always gets the same color
-      const hash = ticket.id % COLOR_PALETTE.length;
+      // Convert string ID to hash number
+      const hashString = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = ((hash << 5) - hash) + str.charCodeAt(i);
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+      };
+      
+      const hash = hashString(ticket.id) % COLOR_PALETTE.length;
       const color = COLOR_PALETTE[hash];
       
       // But still consider status for some variation

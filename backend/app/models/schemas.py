@@ -25,7 +25,7 @@ class ProjectUpdate(BaseModel):
 
 
 class ProjectOut(ProjectBase):
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
@@ -45,7 +45,7 @@ class ProjectListOut(BaseModel):
 class LabelBase(BaseModel):
     name: str = Field(..., max_length=100)
     color: Optional[str] = Field(None, max_length=7)
-    project_id: int
+    project_id: str
 
 
 class LabelCreate(LabelBase):
@@ -58,10 +58,10 @@ class LabelUpdate(BaseModel):
 
 
 class LabelOut(BaseModel):
-    id: int
+    id: str
     name: str
     color: Optional[str]
-    project_id: int
+    project_id: str
     created_at: datetime
 
     class Config:
@@ -79,7 +79,7 @@ class LabelListOut(BaseModel):
 
 class CycleBase(BaseModel):
     name: str = Field(..., max_length=255)
-    project_id: int
+    project_id: str
     start_date: date
     end_date: date
     status: CycleStatus = CycleStatus.planned
@@ -97,7 +97,7 @@ class CycleUpdate(BaseModel):
 
 
 class CycleOut(CycleBase):
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
@@ -116,7 +116,7 @@ class CycleListOut(BaseModel):
 
 class ModuleBase(BaseModel):
     name: str = Field(..., max_length=255)
-    project_id: int
+    project_id: str
     description: Optional[str] = None
     lead_id: Optional[str] = Field(None, max_length=255)
 
@@ -132,7 +132,7 @@ class ModuleUpdate(BaseModel):
 
 
 class ModuleOut(ModuleBase):
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
@@ -151,7 +151,7 @@ class ModuleListOut(BaseModel):
 
 # Minimal schemas for nested relationships to avoid circular imports
 class LabelMinimal(BaseModel):
-    id: int
+    id: str
     name: str
     color: Optional[str]
 
@@ -160,7 +160,7 @@ class LabelMinimal(BaseModel):
 
 
 class ProjectMinimal(BaseModel):
-    id: int
+    id: str
     name: str
     identifier: str
 
@@ -169,7 +169,7 @@ class ProjectMinimal(BaseModel):
 
 
 class CycleMinimal(BaseModel):
-    id: int
+    id: str
     name: str
     start_date: date
     end_date: date
@@ -179,7 +179,7 @@ class CycleMinimal(BaseModel):
 
 
 class ModuleMinimal(BaseModel):
-    id: int
+    id: str
     name: str
 
     class Config:
@@ -187,7 +187,7 @@ class ModuleMinimal(BaseModel):
 
 
 class TicketMinimal(BaseModel):
-    id: int
+    id: str
     title: str
     status: TicketStatus
 
@@ -196,7 +196,7 @@ class TicketMinimal(BaseModel):
 
 
 class UserMinimal(BaseModel):
-    id: int
+    id: str
     name: str
     email: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -212,18 +212,18 @@ class TicketBase(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     assignee: Optional[str] = Field(None, max_length=255)  # Keep for backward compatibility
-    assignee_id: Optional[int] = None
+    assignee_id: Optional[str] = None
     status: TicketStatus = TicketStatus.open
     priority: Priority = Priority.none
     estimated_hours: Optional[float] = None
-    project_id: Optional[int] = None
-    cycle_id: Optional[int] = None
-    module_id: Optional[int] = None
-    parent_ticket_id: Optional[int] = None
+    project_id: Optional[str] = None
+    cycle_id: Optional[str] = None
+    module_id: Optional[str] = None
+    parent_ticket_id: Optional[str] = None
 
 
 class TicketCreate(TicketBase):
-    label_ids: Optional[List[int]] = Field(default_factory=list)
+    label_ids: Optional[List[str]] = Field(default_factory=list)
 
 
 class TicketUpdate(BaseModel):
@@ -232,19 +232,19 @@ class TicketUpdate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     assignee: Optional[str] = Field(None, max_length=255)  # Keep for backward compatibility
-    assignee_id: Optional[int] = None
+    assignee_id: Optional[str] = None
     status: Optional[TicketStatus] = None
     priority: Optional[Priority] = None
     estimated_hours: Optional[float] = None
-    project_id: Optional[int] = None
-    cycle_id: Optional[int] = None
-    module_id: Optional[int] = None
-    parent_ticket_id: Optional[int] = None
-    label_ids: Optional[List[int]] = None
+    project_id: Optional[str] = None
+    cycle_id: Optional[str] = None
+    module_id: Optional[str] = None
+    parent_ticket_id: Optional[str] = None
+    label_ids: Optional[List[str]] = None
 
 
 class TicketOut(TicketBase):
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
@@ -289,7 +289,7 @@ class UserUpdate(BaseModel):
 
 
 class UserOut(UserBase):
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
