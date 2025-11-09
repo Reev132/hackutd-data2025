@@ -1,67 +1,64 @@
-from fastapi import APIRouter, HTTPException
-from app.models.schemas import (
-    MeetingNotesRequest,
-    ProcessedOutput,
-    NotionExportRequest,
-    NotionExportResponse
-)
-from app.services.nemotron_service import NemotronService
-from app.services.notion_service import NotionService
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from typing import List
 
-router = APIRouter()
+from app.models.schemas import TicketCreate, TicketUpdate, TicketOut, TicketListOut
+from app.services.db_service import get_db
+from app.services.ticket_service import TicketService
 
-nemotron_service = NemotronService()
-notion_service = NotionService()
+router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
-@router.post("/process", response_model=ProcessedOutput)
-async def process_meeting_notes(request: MeetingNotesRequest):
-    """Process meeting notes and generate structured deliverables."""
+ticket_service = TicketService()
+
+
+@router.post("/", response_model=TicketOut)
+def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
+    """Create a new ticket"""
     try:
-        if request.output_type == "prd":
-            content = nemotron_service.generate_prd(request.notes)
-        elif request.output_type == "user_story":
-            content = nemotron_service.generate_user_stories(request.notes)
-        elif request.output_type == "action_items":
-            content = nemotron_service.generate_action_items(request.notes)
-        elif request.output_type == "summary":
-            content = nemotron_service.generate_summary(request.notes)
-        else:
-            raise HTTPException(status_code=400, detail="Invalid output_type")
-
-        return ProcessedOutput(
-            content=content,
-            output_type=request.output_type
-        )
+        created_ticket = ticket_service.create_ticket(db, ticket)
+        return created_ticket
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Ticket creation failed: {str(e)}")
 
-@router.post("/export-notion", response_model=NotionExportResponse)
-async def export_to_notion(request: NotionExportRequest):
-    """Export processed content to Notion."""
+
+@router.get("/", response_model=TicketListOut)
+def list_tickets(db: Session = Depends(get_db)):
+    """Get all tickets, ordered by creation date"""
     try:
-        if request.database_id:
-            result = notion_service.add_to_database(
-                content=request.content,
-                title=request.page_title,
-                database_id=request.database_id
-            )
-        else:
-            result = notion_service.create_page(
-                content=request.content,
-                title=request.page_title
-            )
-
-        if result["success"]:
-            return NotionExportResponse(
-                success=True,
-                notion_url=result["url"],
-                message="Successfully exported to Notion"
-            )
-        else:
-            # Return detailed error message from Notion service
-            raise HTTPException(status_code=400, detail=result["error"])
-
-    except HTTPException:
-        raise
+        tickets = ticket_service.get_all_tickets(db)
+        return {"tickets": tickets, "total": len(tickets)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Notion export failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch tickets: {str(e)}")
+
+
+@router.get("/{ticket_id}", response_model=TicketOut)
+def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    """Retrieve a single ticket by ID"""
+    ticket = ticket_service.get_ticket_by_id(db, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return ticket
+
+
+@router.put("/{ticket_id}", response_model=TicketOut)
+def update_ticket(ticket_id: int, update_data: TicketUpdate, db: Session = Depends(get_db)):
+    """Update an existing ticket"""
+    try:
+        updated_ticket = ticket_service.update_ticket(db, ticket_id, update_data)
+        if not updated_ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        return updated_ticket
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ticket update failed: {str(e)}")
+
+
+@router.delete("/{ticket_id}")
+def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    """Delete a ticket by ID"""
+    try:
+        deleted = ticket_service.delete_ticket(db, ticket_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        return {"message": f"Ticket {ticket_id} deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ticket deletion failed: {str(e)}")
