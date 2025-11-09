@@ -148,3 +148,4 @@ class UserService:
 # Singleton instance
 user_service = UserService()
 
+

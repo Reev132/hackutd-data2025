@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: "Voice Assistant", href: "/", icon: Sparkles },
+  { name: "Voice Assistant", href: "/voice-assistant", icon: Sparkles },
   { name: "Tickets", href: "/tickets", icon: Ticket },
   { name: "Drawing Board", href: "/board", icon: PenTool },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },

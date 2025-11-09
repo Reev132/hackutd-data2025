@@ -1,16 +1,22 @@
+# CRITICAL: Load .env BEFORE any app imports
+# Otherwise services initialize without environment variables
+from dotenv import load_dotenv
+import os
+
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_path = os.path.join(backend_dir, ".env")
+print(f"[ENV] Loading from: {env_path}")
+print(f"[ENV] File exists: {os.path.exists(env_path)}")
+loaded = load_dotenv(env_path)
+print(f"[ENV] Loaded successfully: {loaded}")
+print(f"[ENV] DEEPGRAM_API_KEY present: {bool(os.getenv('DEEPGRAM_API_KEY'))}")
+
+# NOW import app modules (they can read env vars)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
-import os
-from app.routes import catalyst
+from app.routes import catalyst, voice
 from app.services.firebase_service import initialize_firebase, cleanup_firebase
-
-# Load environment variables from .env file
-# This looks for .env in the backend directory
-backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env_path = os.path.join(backend_dir, ".env")
-load_dotenv(env_path)
 
 
 @asynccontextmanager
@@ -45,10 +51,11 @@ app = FastAPI(
 # CORS middleware - allows frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js frontend
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Next.js frontend
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, OPTIONS)
     allow_headers=["*"],  # Allow all headers
 )
 
 app.include_router(catalyst.router)
+app.include_router(voice.router)

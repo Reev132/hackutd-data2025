@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import ExcalidrawComponent from "@/components/Excalidraw";
 import AIPromptInput from "@/components/PromptInput";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -11,6 +11,16 @@ export default function DrawingBoardPage() {
     const [mermaidCode, setMermaidCode] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Load diagram from session storage if available (from voice assistant)
+    useEffect(() => {
+        const savedDiagram = sessionStorage.getItem('meeting_diagram');
+        if (savedDiagram && savedDiagram.trim()) {
+            setMermaidCode(savedDiagram);
+            // Clear after loading
+            sessionStorage.removeItem('meeting_diagram');
+        }
+    }, []);
 
     const handlePromptSubmit = async (prompt: string) => {
         setIsGenerating(true);

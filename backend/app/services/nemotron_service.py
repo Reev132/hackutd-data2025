@@ -1,6 +1,7 @@
 import os
 from openai import OpenAI
 from typing import Optional
+import httpx
 
 # Initialize NVIDIA Nemotron client
 # NVIDIA API is compatible with OpenAI SDK
@@ -10,9 +11,15 @@ def get_nemotron_client():
         raise ValueError("NVIDIA_API_KEY environment variable is not set")
     
     base_url = "https://integrate.api.nvidia.com/v1"
+    
+    # Explicitly create httpx client to avoid proxies compatibility issue
+    # httpx 0.28+ removed proxies argument, so we create client without it
+    http_client = httpx.Client(timeout=60.0)
+    
     return OpenAI(
         base_url=base_url,
-        api_key=api_key
+        api_key=api_key,
+        http_client=http_client
     )
 
 
