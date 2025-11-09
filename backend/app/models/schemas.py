@@ -1,37 +1,44 @@
+from datetime import date, datetime
+from typing import List, Optional
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from .enums import TicketStatus
 
-class MeetingNotesRequest(BaseModel):
-    notes: str = Field(..., description="Raw meeting notes text")
-    output_type: str = Field(..., description="Type of deliverable to generate (prd, user_story, action_items, summary)")
+# Shared fields that both create and update can reuse
+class TicketBase(BaseModel):
+    title: str = Field(..., max_length=255)
+    summary: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    assignee: Optional[str] = Field(None, max_length=255)
+    status: TicketStatus = TicketStatus.open
 
-class ProcessedOutput(BaseModel):
-    content: str = Field(..., description="Processed content from AI")
-    output_type: str = Field(..., description="Type of deliverable generated")
+# Request schema for POST
+class TicketCreate(TicketBase):
+    pass
 
-class NotionExportRequest(BaseModel):
-    content: str = Field(..., description="Content to export to Notion")
-    page_title: str = Field(..., description="Title of the Notion page")
-    database_id: Optional[str] = Field(None, description="Notion database ID if exporting to database")
+# Request schema for PUT
+class TicketUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    summary: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    assignee: Optional[str] = Field(None, max_length=255)
+    status: Optional[TicketStatus] = None
 
-class NotionExportResponse(BaseModel):
-    success: bool
-    notion_url: Optional[str] = Field(None, description="URL of created Notion page")
-    message: str
+# Response schema for a single ticket
+class TicketOut(TicketBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
 
-class ActionItem(BaseModel):
-    task: str
-    assignee: Optional[str] = None
-    deadline: Optional[str] = None
-    priority: Optional[str] = None
+    class Config:
+        from_attributes = True  # Pydantic v2
+        json_encoders = {}
 
-class UserStory(BaseModel):
-    title: str
-    as_a: str
-    i_want: str
-    so_that: str
-    acceptance_criteria: List[str]
+# Response schema for list endpoints
+class TicketListOut(BaseModel):
+    tickets: List[TicketOut]
+    total: int
 
-class PRDSection(BaseModel):
-    section: str
-    content: str
+    class Config:
+        from_attributes = True
