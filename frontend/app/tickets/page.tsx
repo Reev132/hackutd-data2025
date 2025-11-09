@@ -340,11 +340,16 @@ export default function TicketsPage() {
       if (formData.summary && formData.summary.trim()) {
         payload.summary = formData.summary.trim();
       }
+      // Always include assignee_id to allow clearing it (send null if not set)
       if (formData.assignee_id) {
         payload.assignee_id = formData.assignee_id;
       } else if (formData.assignee && formData.assignee.trim()) {
         // Fallback for backward compatibility
         payload.assignee = formData.assignee.trim();
+      } else {
+        // Explicitly clear assignee if not set
+        payload.assignee_id = null;
+        payload.assignee = null;
       }
       if (formData.start_date) {
         payload.start_date = formData.start_date;
@@ -453,8 +458,8 @@ export default function TicketsPage() {
     // Map backend status to display status
     const statusToDisplay: Record<TicketStatus, string> = {
       open: "backlog",
-      in_progress: "in_progress",
-      resolved: "done",
+      in_progress: "todo",
+      resolved: "in_progress",
       closed: "done",
     };
     setDisplayStatus(statusToDisplay[ticket.status] || "backlog");
@@ -485,6 +490,99 @@ export default function TicketsPage() {
       selectedStatus === "all" || ticket.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  // Map backend status to display column
+  // We map each backend status to a unique display column:
+  // - "open" -> "backlog"
+  // - "in_progress" -> "todo" (tickets ready to work on)
+  // - "resolved" -> "in_progress" (tickets being worked on)
+  // - "closed" -> "done" (completed tickets)
+  const getDisplayColumn = (ticket: Ticket): string => {
+    switch (ticket.status) {
+      case "open":
+        return "backlog";
+      case "in_progress":
+        return "todo";
+      case "resolved":
+        return "in_progress";
+      case "closed":
+        return "done";
+      default:
+        return "backlog";
+    }
+  };
+
+  // Group tickets by display column
+  const ticketsByColumn = {
+    backlog: filteredTickets.filter((t) => getDisplayColumn(t) === "backlog"),
+    todo: filteredTickets.filter((t) => getDisplayColumn(t) === "todo"),
+    in_progress: filteredTickets.filter((t) => getDisplayColumn(t) === "in_progress"),
+    done: filteredTickets.filter((t) => getDisplayColumn(t) === "done"),
+  };
+
+  // Get ticket icon and color based on priority/type
+  const getTicketIcon = (ticket: Ticket): { icon: string; bgColor: string; iconColor: string } => {
+    // Map priority to icon colors
+    switch (ticket.priority) {
+      case "urgent":
+        return { icon: "campaign", bgColor: "bg-orange-100", iconColor: "text-orange-600" };
+      case "high":
+        return { icon: "description", bgColor: "bg-green-100", iconColor: "text-green-600" };
+      case "medium":
+        return { icon: "edit_note", bgColor: "bg-cyan-100", iconColor: "text-cyan-600" };
+      case "low":
+        return { icon: "palette", bgColor: "bg-purple-100", iconColor: "text-purple-600" };
+      default:
+        return { icon: "edit_note", bgColor: "bg-cyan-100", iconColor: "text-cyan-600" };
+    }
+  };
+
+  // Get ticket identifier
+  const getTicketId = (ticket: Ticket): string => {
+    if (ticket.project?.identifier) {
+      return `${ticket.project.identifier} ${ticket.id}`;
+    }
+    return `TICKET-${ticket.id}`;
+  };
+
+  // Format date
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  // Get status icon
+  const getStatusIcon = (column: string): string => {
+    switch (column) {
+      case "backlog":
+        return "pending";
+      case "todo":
+        return "radio_button_unchecked";
+      case "in_progress":
+        return "progress_activity";
+      case "done":
+        return "check_circle";
+      default:
+        return "pending";
+    }
+  };
+
+  // Get status icon color
+  const getStatusIconColor = (column: string): string => {
+    switch (column) {
+      case "backlog":
+        return "text-gray-500";
+      case "todo":
+        return "text-gray-500";
+      case "in_progress":
+        return "text-yellow-500";
+      case "done":
+        return "text-green-500";
+      default:
+        return "text-gray-500";
+    }
+  };
 
   const statuses: Array<{ value: TicketStatus | "all"; label: string }> = [
     { value: "all", label: "All" },
@@ -584,201 +682,204 @@ export default function TicketsPage() {
       })),
   ];
 
+  const columns = [
+    { key: "backlog", label: "Backlog" },
+    { key: "todo", label: "Todo" },
+    { key: "in_progress", label: "In progress" },
+    { key: "done", label: "Done" },
+  ];
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Tickets</h1>
-            <p className="text-muted-foreground">
-              Manage your product tickets and issues
-            </p>
-          </div>
-          <Button
-            className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium px-4 py-2"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Add work item
-          </Button>
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
+      {/* Header */}
+      <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-gray-200">
+        <div className="flex items-center text-sm text-gray-500">
+          {selectedProject && (
+            <>
+              <span className="text-base mr-2">🚀</span>
+              <span>{selectedProject.name}</span>
+              <span className="material-symbols-outlined text-lg mx-1">chevron_right</span>
+            </>
+          )}
+          <span>Work Items</span>
         </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tickets..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <div className="flex gap-2">
-                  {statuses.map((status) => (
-                    <Button
-                      key={status.value}
-                      variant={
-                        selectedStatus === status.value ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => setSelectedStatus(status.value)}
-                    >
-                      {status.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading tickets...</p>
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center border border-gray-300 rounded">
+            <button className="p-2 border-r border-gray-300 text-gray-600 hover:bg-gray-100">
+              <span className="material-symbols-outlined text-lg">view_kanban</span>
+            </button>
+            <button className="p-2 text-gray-600 hover:bg-gray-100">
+              <span className="material-symbols-outlined text-lg">list</span>
+            </button>
           </div>
-        )}
+          <button className="flex items-center px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100">
+            Filters <span className="material-symbols-outlined text-lg ml-1">expand_more</span>
+          </button>
+          <button className="flex items-center px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100">
+            Display <span className="material-symbols-outlined text-lg ml-1">expand_more</span>
+          </button>
+          <button className="px-4 py-1.5 bg-[#4361EE] text-white rounded text-sm font-medium hover:bg-blue-700" onClick={() => setShowCreateModal(true)}>
+            Add work item
+          </button>
+        </div>
+      </header>
 
-        {/* Tickets Grid */}
-        {!loading && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredTickets.map((ticket) => (
-              <Card
-                key={ticket.id}
-                className="transition-shadow hover:shadow-md"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base font-semibold line-clamp-1">
-                      {ticket.title}
-                    </CardTitle>
-                    <div className="flex gap-1">
-                      <Badge className={statusColors[ticket.status]}>
-                        {ticket.status.replace("_", " ")}
-                      </Badge>
-                      {ticket.priority && ticket.priority !== "none" && (
-                        <Badge className={priorityColors[ticket.priority]}>
-                          {ticket.priority}
-                        </Badge>
-                      )}
+      {/* Kanban Board */}
+      <div className="flex-1 p-6 overflow-x-auto bg-white">
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading tickets...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-6 min-w-max">
+            {columns.map((column) => {
+              const columnTickets = ticketsByColumn[column.key as keyof typeof ticketsByColumn] || [];
+              const statusIcon = getStatusIcon(column.key);
+              const statusIconColor = getStatusIconColor(column.key);
+
+              return (
+                <div key={column.key} className="space-y-4 min-w-[280px]">
+                  {/* Column Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className={`material-symbols-outlined text-lg mr-2 ${statusIconColor}`}>
+                        {statusIcon}
+                      </span>
+                      <h2 className="font-medium text-gray-800">
+                        {column.label}
+                      </h2>
+                      <span className="ml-2 text-sm text-gray-500">
+                        {columnTickets.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-gray-500">
+                      <button className="hover:text-gray-800">
+                        <span className="material-symbols-outlined text-lg">more_horiz</span>
+                      </button>
+                      <button className="hover:text-gray-800">
+                        <span className="material-symbols-outlined text-lg">add</span>
+                      </button>
                     </div>
                   </div>
-                  {ticket.summary && (
-                    <CardDescription className="line-clamp-2">
-                      {ticket.summary}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {ticket.project && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Project:</span>
-                      <span className="font-medium">{ticket.project.name}</span>
-                    </div>
-                  )}
-                  {ticket.module && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Module:</span>
-                      <span className="font-medium">{ticket.module.name}</span>
-                    </div>
-                  )}
-                  {ticket.cycle && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Cycle:</span>
-                      <span className="font-medium">{ticket.cycle.name}</span>
-                    </div>
-                  )}
-                  {ticket.assignee_user && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Assignee:</span>
-                      <UserAvatar user={ticket.assignee_user} size="sm" />
-                    </div>
-                  )}
-                  {ticket.labels && ticket.labels.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {ticket.labels.map((label) => (
-                        <Badge
-                          key={label.id}
-                          className="text-xs"
-                          style={{
-                            backgroundColor: label.color || "#gray",
-                            color: "white",
-                          }}
+
+                  {/* Tickets */}
+                  <div className="space-y-4">
+                    {columnTickets.map((ticket) => {
+                      const ticketIcon = getTicketIcon(ticket);
+                      const ticketId = getTicketId(ticket);
+                      const displayDate = ticket.end_date || ticket.start_date || ticket.created_at;
+
+                      return (
+                        <div
+                          key={ticket.id}
+                          className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow relative group"
+                          onClick={() => openEditModal(ticket)}
                         >
-                          {label.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  {ticket.subtasks && ticket.subtasks.length > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Subtasks:</span>
-                      <span className="font-medium">
-                        {ticket.subtasks.length}
-                      </span>
-                    </div>
-                  )}
-                  {ticket.start_date && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Start:</span>
-                      <span>
-                        {new Date(ticket.start_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                  {ticket.end_date && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Due:</span>
-                      <span>
-                        {new Date(ticket.end_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Created:</span>
-                    <span>
-                      {new Date(ticket.created_at).toLocaleDateString()}
-                    </span>
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteTicket(ticket.id);
+                            }}
+                            className="absolute top-2 right-2 p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Delete ticket"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+
+                          {/* Ticket Header */}
+                          <div className="flex items-start mb-2">
+                            <div className={`w-5 h-5 rounded-sm ${ticketIcon.bgColor} flex items-center justify-center mr-2`}>
+                              <span className={`material-symbols-outlined text-sm ${ticketIcon.iconColor}`}>
+                                {ticketIcon.icon}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">{ticketId}</span>
+                          </div>
+
+                          {/* Ticket Title */}
+                          <p className="text-sm text-gray-900 mb-4 line-clamp-2">
+                            {ticket.title}
+                          </p>
+
+                          {/* Ticket Metadata */}
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center space-x-2">
+                              <span className="material-symbols-outlined text-sm">signal_cellular_alt</span>
+                              <span className="flex items-center">
+                                <span className={`material-symbols-outlined text-sm mr-1 ${statusIconColor}`}>
+                                  {statusIcon}
+                                </span>
+                                {column.label}
+                              </span>
+                              {displayDate && (
+                                <span className="flex items-center">
+                                  <span className="material-symbols-outlined text-sm mr-1">calendar_today</span>
+                                  {formatDate(displayDate)}
+                                </span>
+                              )}
+                            </div>
+                            {ticket.assignee_user && (
+                              <div className="flex -space-x-2">
+                                {ticket.assignee_user.avatar_url ? (
+                                  <img
+                                    alt={ticket.assignee_user.name}
+                                    className="w-5 h-5 rounded-full border-2 border-white"
+                                    src={ticket.assignee_user.avatar_url}
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-medium"
+                                    style={{
+                                      backgroundColor: ticket.assignee_user.color || "#3b82f6",
+                                    }}
+                                  >
+                                    {(ticket.assignee_user.initials || ticket.assignee_user.name.substring(0, 2)).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => openEditModal(ticket)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => deleteTicket(ticket.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                  {/* Add New Item Button */}
+                  <button
+                    className="flex items-center text-sm text-gray-500 w-full px-2 py-1 rounded hover:bg-gray-100"
+                    onClick={() => {
+                      const statusMap: Record<string, TicketStatus> = {
+                        backlog: "open",
+                        todo: "in_progress",
+                        in_progress: "resolved",
+                        done: "closed",
+                      };
+                      setDisplayStatus(column.key);
+                      setFormData((prev) => ({
+                        ...prev,
+                        status: statusMap[column.key] || "open",
+                      }));
+                      setShowCreateModal(true);
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-lg mr-1">add</span>
+                    New work item
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
         {!loading && filteredTickets.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No tickets found</p>
+            <p className="text-gray-500">No tickets found</p>
           </div>
         )}
+      </div>
 
-        {/* Create Ticket Modal */}
+      {/* Create Ticket Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/10">
             <div className="w-full max-w-2xl bg-white rounded-lg shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -864,9 +965,9 @@ export default function TicketsPage() {
                     onSelect={(value) => {
                       const statusMap: Record<string, TicketStatus> = {
                         backlog: "open",
-                        todo: "open",
-                        in_progress: "in_progress",
-                        done: "resolved",
+                        todo: "in_progress",
+                        in_progress: "resolved",
+                        done: "closed",
                       };
                       setDisplayStatus(value);
                       setFormData({
@@ -1104,9 +1205,9 @@ export default function TicketsPage() {
                     onSelect={(value) => {
                       const statusMap: Record<string, TicketStatus> = {
                         backlog: "open",
-                        todo: "open",
-                        in_progress: "in_progress",
-                        done: "resolved",
+                        todo: "in_progress",
+                        in_progress: "resolved",
+                        done: "closed",
                       };
                       setDisplayStatus(value);
                       setFormData({
@@ -1246,7 +1347,6 @@ export default function TicketsPage() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }
