@@ -1,36 +1,10 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
-
-# Load environment variables BEFORE importing routes
-# Look for .env in the backend directory (parent of app/)
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-
 from app.routes import catalyst
+from app.services.db_service import init_db
 
-app = FastAPI(
-    title="Catalyst API",
-    description="AI PM productivity agent powered by NVIDIA Nemotron",
-    version="1.0.0"
-)
+app = FastAPI(title="AI Project Manager Backend")
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Initialize DB on startup
+init_db()
 
-# Include routers
-app.include_router(catalyst.router, prefix="/api/catalyst", tags=["catalyst"])
-
-@app.get("/")
-async def root():
-    return {"message": "Catalyst API is running"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+app.include_router(catalyst.router)
