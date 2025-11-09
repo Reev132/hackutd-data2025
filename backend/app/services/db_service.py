@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.orm import Base
+from app.models.orm import Base, User  # Import User to ensure it's registered
 
 DATABASE_URL = "sqlite:///./catalyst.db"
 
@@ -16,4 +16,5 @@ def get_db():
 
 # Initialize database if not using Alembic migrations
 def init_db():
+    # Create all tables including User table
     Base.metadata.create_all(bind=engine)
